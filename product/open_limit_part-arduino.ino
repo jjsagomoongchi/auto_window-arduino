@@ -76,6 +76,7 @@ void loop() { //열렸는지 안열였는지 보냄
   vin = vout / ( R2 / ( R1 + R2) );
 
   vin *= 0.6324;
+  float vper = (vin - 3.5) * 142.8;
 
   Serial.print("V: ");
   Serial.println(vin); //현재1.5V 4채널 건전지의 전압값을 출력해줍니다.
@@ -94,6 +95,7 @@ void loop() { //열렸는지 안열였는지 보냄
   
   if (nowMillis - lastMillis >= 5000 || lastMillis == 0){
     Serial.printf("Set Battery's SOC… %s\n", Firebase.setFloat(fbdo, "/product/window/env/openV", vin) ? "ok" : fbdo.errorReason().c_str());
+    Serial.printf("Set Battery's SOCper… %s\n", Firebase.setFloat(fbdo, "/product/window/batt/openVper", vper) ? "ok" : fbdo.errorReason().c_str());
     lastMillis = millis();
   }
   
