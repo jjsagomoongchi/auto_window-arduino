@@ -29,18 +29,17 @@ FirebaseConfig config;
 int Motor = 0;
 int isOpen = 0;
 int isClose = 0;
+int air_cnd = 0;
 
 #define Vsensor A0
 #define motorO D1
 #define motorC D2
 
-void setup()
-{
+void setup() {
   Serial.begin(115200);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Serial.print("Connecting to Wi-Fi");
-  while (WiFi.status() != WL_CONNECTED)
-  {
+  while (WiFi.status() != WL_CONNECTED) {
     Serial.print(".");
     delay(300);
   }
@@ -57,7 +56,7 @@ void setup()
   auth.user.password = USER_PASSWORD;
 
   config.database_url = DATABASE_URL;
-  config.token_status_callback = tokenStatusCallback; // see addons/TokenHelper.h
+  config.token_status_callback = tokenStatusCallback;
 
   Firebase.begin(&config, &auth);
   Firebase.reconnectWiFi(true);
@@ -73,18 +72,25 @@ void setup()
 void loop() {
   value = analogRead(Vsensor);
   vout = (value * 5.0) / 1024.0;  //전압값을 계산해주는 공식입니다.
-  vin = vout / ( R2 / ( R1 + R2) );
+  vin = vout / (R2 / (R1 + R2));
 
   vin *= 0.6564;
 
   Serial.print("V: ");
-  Serial.println(vin); //현재1.5V 4채널 건전지의 전압값을 출력해줍니다.
-  Firebase.setFloat(fbdo, F("/product/window/env/motorV"), vin);
+  Serial.println(vin);  //현재1.5V 4채널 건전지의 전압값을 출력해줍니다.
+  double vper = (vin - 7) * 71.4286;
+  Serial.print(vper);
+  Serial.println("%");
+  Firebase.setFloat(fbdo, F("/product/window/batt/motorV"), vin);
+  Firebase.setDouble(fbdo, "/product/window/batt/motorVper", vper);
+  Firebase.getInt(fbdo, F("/product/switch/env/air_conditioner"), &air_cnd);
   Firebase.getInt(fbdo, F("/product/window/env/motor"), &Motor);
-  Serial.print("---");
-  Serial.println(Motor);
-  switch (Motor) { //모터 돌릴지멈출지 뒤로갈지
-    case 1: //열기
+  if (air_cnd){
+    Motor = 2;
+    Firebase.setInt(fbdo, F("/product/window/env/motor"), Motor);
+  }
+  switch (Motor) {  //모터 돌릴지멈출지 뒤로갈지
+    case 1:         //열기
       Firebase.getInt(fbdo, F("/product/window/env/open"), &isOpen);
       while (!isOpen && Motor == 1) {
         digitalWrite(motorO, HIGH);
@@ -92,8 +98,6 @@ void loop() {
         delay(1000);
         Firebase.getInt(fbdo, F("/product/window/env/open"), &isOpen);
         Firebase.getInt(fbdo, F("/product/window/env/motor"), &Motor);
-        Serial.print("-");
-        Serial.println(isOpen);
       }
       digitalWrite(motorO, LOW);
       Serial.println("open done");
@@ -101,7 +105,7 @@ void loop() {
         Firebase.setInt(fbdo, F("/product/window/env/motor"), 0);
       }
       break;
-    case 2: //닫기
+    case 2:  //닫기
       Firebase.getInt(fbdo, F("/product/window/env/close"), &isClose);
       while (!isClose && Motor == 2) {
         digitalWrite(motorO, LOW);
@@ -109,8 +113,6 @@ void loop() {
         delay(1000);
         Firebase.getInt(fbdo, F("/product/window/env/close"), &isClose);
         Firebase.getInt(fbdo, F("/product/window/env/motor"), &Motor);
-        Serial.print("- -");
-        Serial.println(isClose);
       }
       digitalWrite(motorC, LOW);
       Serial.println("close done");
@@ -126,5 +128,4 @@ void loop() {
   }
 
   delay(1000);
-  Serial.println("ye");
 }
